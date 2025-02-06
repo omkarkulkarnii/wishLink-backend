@@ -11,7 +11,7 @@ const port = 3000
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://wishlist-tfz7.onrender.com',
+    origin: 'https://wishlist-tfz7.onrender.com',
     credentials: true
   }));
 
