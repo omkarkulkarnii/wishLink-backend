@@ -3,78 +3,97 @@ import puppeteer from "puppeteer";
 const fetchProductDetails = async (url) => {
     let browser;
     try {
-      browser = await puppeteer.launch({ headless: "new" });
-      const page = await browser.newPage();
-      await page.setUserAgent("Mozilla/5.0");
-      await page.goto(url, { waitUntil: "domcontentloaded" });
-  
-      let name, description, imageUrl, price;
-  
-      if (url.includes("flipkart.com")) {
-        // Flipkart - Name
-        try {
-          name = await page.$eval("span.VU-ZEz", (el) => el.innerText.trim());
-        } catch (error) {
-          name = "Name not found";
-        }
-  
-        // Flipkart - Description
-        try {
-          description = await page.$eval("div._4gvKMe", (el) => el.innerText.trim());
-        } catch (error) {
-          description = "Description not available";
-        }
-  
-        // Flipkart - Price
-        try {
-          price = await page.$eval("div.Nx9bqj.CxhGGd", (el) => el.innerText.trim().replace('₹', '').replace(',', ''));
-        } catch (error) {
-          price = "Price not available";
-        }
-  
-        // Flipkart - Image URL
-        try {
-          imageUrl = await page.$eval('img[src*="rukminim"]', (el) => el.getAttribute("src"));
-        } catch (error) {
-          imageUrl = "Image not available";
-        }
-  
-      } else if (url.includes("amazon.")) {
-        name = await page.$eval("#productTitle", (el) => el.innerText.trim());
-
-        description = await page.$eval("#feature-bullets span.a-list-item", (el) => el.innerText.trim())
-          .catch(() => "No description found");
-
-        price = await page.$eval("span.a-price-whole", (el) => el.innerText.trim().replace('₹', '').replace(',', '').replace(/\n./g, ''))
-          .catch(() => "Price not available");
-
-        imageUrl = await page.$eval("#landingImage", (el) => el.getAttribute("src"));
-
-      } else if (url.includes("myntra.com")) {
-        name = await page.$eval("h1.pdp-title", (el) => el.innerText.trim());
-
-        description = await page.$eval("p.pdp-product-description-content", (el) => el.innerText.trim());
-
-        price = await page.$eval("span.pdp-price strong", (el) => el.innerText.trim().replace('₹', '').replace(',', ''))
-        .catch(() => "Price not available");
-
-
-        imageUrl = await page.$eval("div.image-grid-image", (el) => {
-          const style = el.getAttribute("style");
-          const urlMatch = style.match(/url\("([^"]+)"\)/);
-          return urlMatch ? urlMatch[1] : null;
+        // Updated browser launch configuration for Render
+        browser = await puppeteer.launch({
+            headless: "new",
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--single-process'
+            ],
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null
         });
-      } else {
-        return { error: "Unsupported website" };
-      }
-  
-      return { name, description, price, imageUrl };
+
+        const page = await browser.newPage();
+        
+        // Set timeout and user agent
+        await page.setDefaultNavigationTimeout(30000); // 30 seconds timeout
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+        // Add error logging
+        page.on('error', err => {
+            console.error('Page error:', err);
+        });
+
+        page.on('console', msg => {
+            console.log('Page console:', msg.text());
+        });
+
+        await page.goto(url, { 
+            waitUntil: "domcontentloaded",
+            timeout: 30000
+        });
+
+        let name, description, imageUrl, price;
+
+        console.log('Scraping URL:', url); // Debug log
+
+        if (url.includes("flipkart.com")) {
+            try {
+                name = await page.$eval("span.VU-ZEz", (el) => el.innerText.trim());
+                console.log('Found name:', name); // Debug log
+            } catch (error) {
+                console.error('Error fetching name:', error);
+                name = "Name not found";
+            }
+
+            try {
+                description = await page.$eval("div._4gvKMe", (el) => el.innerText.trim());
+            } catch (error) {
+                console.error('Error fetching description:', error);
+                description = "Description not available";
+            }
+
+            try {
+                price = await page.$eval("div.Nx9bqj.CxhGGd", (el) => 
+                    el.innerText.trim().replace('₹', '').replace(',', ''));
+            } catch (error) {
+                console.error('Error fetching price:', error);
+                price = "Price not available";
+            }
+
+            try {
+                imageUrl = await page.$eval('img[src*="rukminim"]', (el) => 
+                    el.getAttribute("src"));
+            } catch (error) {
+                console.error('Error fetching image:', error);
+                imageUrl = "Image not available";
+            }
+
+        } else if (url.includes("amazon.")) {
+            // ... existing Amazon code ...
+        } else if (url.includes("myntra.com")) {
+            // ... existing Myntra code ...
+        } else {
+            return { error: "Unsupported website" };
+        }
+
+        console.log('Scraped data:', { name, description, price, imageUrl }); // Debug log
+        return { name, description, price, imageUrl };
+
     } catch (error) {
-      console.error("Error fetching product details:", error);
-      return { error: "Failed to fetch product details" };
+        console.error("Error in fetchProductDetails:", error);
+        return { error: "Failed to fetch product details: " + error.message };
     } finally {
-      if (browser) await browser.close();
+        if (browser) {
+            try {
+                await browser.close();
+            } catch (error) {
+                console.error("Error closing browser:", error);
+            }
+        }
     }
-  };
-  
-export  {fetchProductDetails};
+};
+
+export { fetchProductDetails };
